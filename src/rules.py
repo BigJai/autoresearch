@@ -751,6 +751,112 @@ def inversion_safety_mars_jupiter_trine(dt: datetime, **kw) -> RuleSignal:
 
 
 # ============================================================
+# CATEGORY 13: MERRIMAN GEOCOSMIC (Raymond Merriman)
+# ============================================================
+
+def merriman_18_week_cycle(dt: datetime, **kw) -> RuleSignal:
+    """Merriman's 18-week primary cycle — market reversal window.
+    18 weeks ± 3 weeks from last major swing. Sub-cycles: 9 weeks, 6 weeks.
+    When strong geocosmic signature present, cycle shrinks to 3 trading days."""
+    past_swings = kw.get('past_swings', [])
+    targets_days = [
+        ('6wk', 42), ('9wk', 63), ('18wk', 126),
+        ('27wk', 189), ('36wk', 252),
+    ]
+    for swing_dt in past_swings[-15:]:
+        days = abs((dt - swing_dt).days)
+        for name, target in targets_days:
+            if abs(days - target) <= 5:  # ±5 day orb for weekly cycles
+                return RuleSignal(True, 1.0 - abs(days - target) / 5,
+                                  None, f'Merriman {name} cycle ({days}d)')
+    return RuleSignal(False)
+
+
+def sun_jupiter_conjunction(dt: datetime, **kw) -> RuleSignal:
+    """Sun-Jupiter conjunction = bottom formation (from research).
+    Tight orb ±1 day. 'Beautiful run' follows consistently."""
+    angle = get_aspect_angle(SUN, JUPITER, dt)
+    hit, strength = is_near(angle, 0, 1.5)
+    if hit:
+        return RuleSignal(True, strength, 'bullish',
+                          f'Sun-Jupiter conjunction ({angle:.1f}°)')
+    return RuleSignal(False)
+
+
+def dual_ingress(dt: datetime, **kw) -> RuleSignal:
+    """Two planets changing sign on same day = STRONG reversal (Cosmogram Rule 1).
+    Single ingress = weak. Dual = strong."""
+    ingress_count = 0
+    planets_moving = []
+    for planet, name in [(MERCURY, 'Mercury'), (VENUS, 'Venus'), (MARS, 'Mars'),
+                         (JUPITER, 'Jupiter'), (SATURN, 'Saturn')]:
+        lon_today = get_planet_longitude(planet, dt)
+        lon_yesterday = get_planet_longitude(planet, dt - timedelta(days=1))
+        if int(lon_today / 30) != int(lon_yesterday / 30):
+            ingress_count += 1
+            planets_moving.append(name)
+    if ingress_count >= 2:
+        return RuleSignal(True, 1.0, None,
+                          f'Dual ingress: {"+".join(planets_moving)}')
+    return RuleSignal(False)
+
+
+def venus_retro_jupiter_retro_overlap(dt: datetime, **kw) -> RuleSignal:
+    """Venus retrograde + Jupiter retrograde simultaneously = market decline.
+    From extended Bayer/WIITS research."""
+    if is_retrograde(VENUS, dt) and is_retrograde(JUPITER, dt):
+        return RuleSignal(True, 1.0, 'bearish', 'Venus+Jupiter both retrograde')
+    return RuleSignal(False)
+
+
+def lunar_node_cycle(dt: datetime, **kw) -> RuleSignal:
+    """18.6-year Lunar Node Cycle — Gann's 'greatest discovery'.
+    Financial Time Table, Aug 8, 1908. Period = 6793.5 days.
+    Also test half (9.3yr = 3397d) and quarter (4.65yr = 1698d)."""
+    past_swings = kw.get('past_swings', [])
+    targets = [('¼ node', 1698), ('½ node', 3397), ('1× node', 6794)]
+    for swing_dt in past_swings[-10:]:
+        days = abs((dt - swing_dt).days)
+        for name, target in targets:
+            if abs(days - target) <= 5:
+                return RuleSignal(True, 1.0, None,
+                                  f'Lunar node {name} ({days}d)')
+    return RuleSignal(False)
+
+
+def merriman_geocosmic_cluster(dt: datetime, **kw) -> RuleSignal:
+    """Multiple major aspects on same day — Merriman's geocosmic cluster.
+    When 3+ aspects form within ±1 day, reversal probability spikes."""
+    aspect_count = 0
+    outer = [JUPITER, SATURN, URANUS, NEPTUNE, PLUTO]
+    for i, p1 in enumerate(outer):
+        for p2 in outer[i + 1:]:
+            angle = get_aspect_angle(p1, p2, dt)
+            for target in [0, 60, 90, 120, 180]:
+                hit, _ = is_near(angle, target, 1.5)
+                if hit:
+                    aspect_count += 1
+    if aspect_count >= 2:
+        return RuleSignal(True, min(aspect_count / 3, 1.0), None,
+                          f'Geocosmic cluster ({aspect_count} outer aspects)')
+    return RuleSignal(False)
+
+
+def gann_45_day_cycle(dt: datetime, **kw) -> RuleSignal:
+    """45-day interval (1/8 of 360°) — one of Gann's key seasonal intervals.
+    Also test 90, 135, 180, 225, 270, 315, 360 day intervals."""
+    past_swings = kw.get('past_swings', [])
+    for swing_dt in past_swings[-20:]:
+        days = abs((dt - swing_dt).days)
+        for mult in range(1, 9):
+            target = 45 * mult
+            if abs(days - target) <= 2:
+                return RuleSignal(True, 0.8, None,
+                                  f'Gann 45×{mult}={target}d ({days}d)')
+    return RuleSignal(False)
+
+
+# ============================================================
 # MASTER RULE REGISTRY
 # ============================================================
 
@@ -827,6 +933,15 @@ RULE_REGISTRY = {
     # Inversion Detection (2)
     'inv_danger_mars_cardinal': {'fn': inversion_danger_mars_cardinal, 'category': 'inversion', 'source': 'Backtested'},
     'inv_safety_mars_jup_trine': {'fn': inversion_safety_mars_jupiter_trine, 'category': 'inversion', 'source': 'Backtested'},
+
+    # Merriman / Mundane Astrology (7)
+    'merriman_18wk': {'fn': merriman_18_week_cycle, 'category': 'merriman', 'source': 'Merriman'},
+    'sun_jupiter_conj': {'fn': sun_jupiter_conjunction, 'category': 'merriman', 'source': 'Merriman/YouTube'},
+    'dual_ingress': {'fn': dual_ingress, 'category': 'merriman', 'source': 'Cosmogram'},
+    'venus_jupiter_retro': {'fn': venus_retro_jupiter_retro_overlap, 'category': 'merriman', 'source': 'Bayer/WIITS'},
+    'lunar_node_cycle': {'fn': lunar_node_cycle, 'category': 'merriman', 'source': 'Gann Financial Time Table'},
+    'geocosmic_cluster': {'fn': merriman_geocosmic_cluster, 'category': 'merriman', 'source': 'Merriman'},
+    'gann_45_day': {'fn': gann_45_day_cycle, 'category': 'seasonal', 'source': 'Gann'},
 }
 
-# Total: 47 rules across 12 categories
+# Total: 54 rules across 13 categories

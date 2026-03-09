@@ -91,6 +91,15 @@ RULE_WEIGHTS = {
     # Inversion (negative = reduces composite, positive = adds to it)
     'inv_danger_mars_cardinal': -1.0,  # Negative: warns of inversion
     'inv_safety_mars_jup_trine': 1.0,  # Positive: confirms alternation
+
+    # Merriman / Mundane Astrology
+    'merriman_18wk': 1.0,         # 18-week primary cycle
+    'sun_jupiter_conj': 1.0,      # Sun-Jupiter conjunction = bottom
+    'dual_ingress': 1.0,          # Two planets change sign same day
+    'venus_jupiter_retro': 1.0,   # Both Venus+Jupiter retrograde
+    'lunar_node_cycle': 1.0,      # 18.6-year lunar node cycle
+    'geocosmic_cluster': 1.0,     # Multiple outer planet aspects
+    'gann_45_day': 1.0,           # 45-day Gann intervals
 }
 
 # ============================================================
