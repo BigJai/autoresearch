@@ -12,9 +12,20 @@ worktrees/
 results/
 queue/
 
-# Agent prompt files (generated per-session by launchers)
-CLAUDE.md
-AGENTS.md
+# Gann-specific
+data/
+experiments/
+*.csv
+*.db
+run.log
 
-# Experimental code/artifacts
-dev/
+# Knowledge (too large for git, keep local)
+knowledge/ebooks/*.txt
+knowledge/youtube/*.json
+knowledge/wiits/*.json
+knowledge/rules-extracted/*.json
+
+# System
+.DS_Store
+.env
+*.swp

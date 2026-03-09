@@ -1,0 +1,44 @@
+# Gann Time Cycles Decoded — How They Actually Work
+# Source: YouTube video 4uMWbzwVM3I (Gann Trading channel, John)
+# KEY INSIGHTS for autoresearch
+
+## 4 Elements Required for Time Cycle Work:
+1. PLANET or PLANETS (sidereal for single, synodic for pairs)
+2. CYCLE LENGTH — IN DEGREES not days!
+3. STARTING POINT / ANCHOR — must backtest to find correct one
+4. CORRECT RATIOS — the rhythm of the cycle (H-L-H-L pattern)
+
+## Critical Rule: Use DEGREES not DAYS
+- Days will drift over time, degrees are precise
+- Even 0.1 degree matters for shorter cycles
+- "If you use days instead of degrees your cycle won't work properly after a short period of time"
+
+## Lunar Cycle Example:
+- Sidereal value of Moon = 27.321 days (NOT 29.5 synodic phase cycle)
+- Common mistake: using lunar phase (29.5d) instead of sidereal (27.3d)
+
+## How Ratios Work:
+- Example: length=180°, ratios=50° and 40°
+- Sequence: 0→50° (low)→90° (high)→140° (low)→180° (high) = end of cycle
+- The H-L-H-L alternation comes FROM the ratios, not random
+- Same ratios keep repeating within the cycle
+
+## Cycle Wrapping:
+- When cycle length exceeds 360° (e.g., 630°), it wraps around the circle
+- 630° = one full revolution (360°) + 270° more
+- New cycle starts at end of previous: 630°→1260°→1890°...
+- "That process will continue till the last day the market stands"
+
+## Key Quotes:
+- "If you are highly dedicated and hardworking you may find the planet and the length
+  but you won't be able to find the anchor and the ratios"
+- "With the correct ratios you will be able to forecast with up to 90% accuracy"
+- "It's a generational process — you will only get the knowledge if a true Gann analyst
+  agrees to teach you"
+
+## IMPLICATIONS FOR AUTORESEARCH:
+1. Current rules.py uses DAYS for cycles — should convert to DEGREES
+2. Need to add RATIO-based cycle splitting (not just cycle length)
+3. The anchor/starting point is the hardest part — perfect for agent optimization
+4. Agent should test different ratio combinations (50/40, 45/45, 60/30, etc.)
+5. Each instrument may have different optimal ratios

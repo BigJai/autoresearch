@@ -1,114 +1,189 @@
-# autoresearch
+# Gann AutoResearch — Autonomous Trading Rule Discovery
 
-This is an experiment to have the LLM do its own research.
+This is an autonomous research system for decoding and optimizing W.D. Gann's
+trading methodology using the AutoResearch pattern.
+
+## What This System Does
+
+Instead of training neural networks, this system discovers and optimizes
+**weighted trading rules** based on planetary cycles, time geometry, and
+Gann's encoded methods. The agent iteratively modifies rule weights, orbs,
+thresholds, and confluence bonuses, then backtests against historical price
+data to find optimal configurations.
 
 ## Setup
 
-To set up a new experiment, work with the user to:
+To set up a new experiment run:
 
-1. **Agree on a run tag**: propose a tag based on today's date (e.g. `mar5`). The branch `autoresearch/<tag>` must not already exist — this is a fresh run.
+1. **Agree on a run tag**: propose a tag based on today's date and focus
+   (e.g. `mar9-cotton`, `mar9-allrules`).
 2. **Create the branch**: `git checkout -b autoresearch/<tag>` from current master.
-3. **Read the in-scope files**: The repo is small. Read these files for full context:
-   - `README.md` — repository context.
-   - `prepare.py` — fixed constants, data prep, tokenizer, dataloader, evaluation. Do not modify.
-   - `train.py` — the file you modify. Model architecture, optimizer, training loop.
-4. **Verify data exists**: Check that `~/.cache/autoresearch/` contains data shards and a tokenizer. If not, tell the human to run `uv run prepare.py`.
-5. **Initialize results.tsv**: Create `results.tsv` with just the header row. The baseline will be recorded after the first run.
-6. **Confirm and go**: Confirm setup looks good.
+3. **Read the in-scope files**:
+   - `program.md` — this file. Research context and directives.
+   - `src/prepare.py` — fixed: data loading, ephemeris, swing detection. Do NOT modify.
+   - `src/rules.py` — fixed: all rule functions. Do NOT modify.
+   - `src/weights.py` — **THE file you modify.** Weights, orbs, thresholds, bonuses.
+   - `src/evaluate.py` — fixed: backtest engine + scoring. Do NOT modify.
+   - `knowledge/` — reference material. Read for hypothesis generation.
+4. **Verify data exists**: Check `data/` contains price CSVs and ephemeris.
+5. **Initialize results.tsv**: Create with header row.
+6. **Confirm and go**.
 
-Once you get confirmation, kick off the experimentation.
+## The Goal
+
+**Maximize the composite score** across these metrics (lower rank = better):
+
+```
+PRIMARY:   precision    — % of signals that are actual turns (higher = better)
+SECONDARY: recall       — % of actual turns captured (higher = better)
+TERTIARY:  profit_factor — total profit / total loss from signals (higher = better)
+PENALTY:   false_alarm_rate — penalized if > 60%
+```
+
+The evaluation function returns a single **fitness score** combining these.
+Your job is to find the weight configuration that maximizes fitness.
+
+## What You CAN Modify
+
+**Only `src/weights.py`**. This file contains:
+
+1. **Rule weights** — how much each of the 30+ rules contributes to the composite
+2. **Orb values** — how tight/loose each rule's angular tolerance is
+3. **Confluence bonuses** — extra score when N rules fire together
+4. **Instrument-specific overrides** — different weights per commodity
+5. **Thresholds** — minimum composite score to generate a signal
+6. **Direction weights** — bullish vs bearish bias per rule
+7. **Interaction terms** — bonus/penalty when specific rule combos fire
+
+## What You CANNOT Modify
+
+- `src/prepare.py` — data loading and ephemeris calculations
+- `src/rules.py` — rule function implementations
+- `src/evaluate.py` — backtest engine and fitness scoring
+- `data/` — historical price data
 
 ## Experimentation
 
-Each experiment runs on a single GPU. The training script runs for a **fixed time budget of 5 minutes** (wall clock training time, excluding startup/compilation). You launch it simply as: `uv run train.py`.
+Each experiment takes ~30 seconds (backtest across all instruments).
+That's ~120 experiments/hour, ~1000+ overnight.
 
-**What you CAN do:**
-- Modify `train.py` — this is the only file you edit. Everything is fair game: model architecture, optimizer, hyperparameters, training loop, batch size, model size, etc.
+Run: `python src/evaluate.py`
 
-**What you CANNOT do:**
-- Modify `prepare.py`. It is read-only. It contains the fixed evaluation, data loading, tokenizer, and training constants (time budget, sequence length, etc).
-- Install new packages or add dependencies. You can only use what's already in `pyproject.toml`.
-- Modify the evaluation harness. The `evaluate_bpb` function in `prepare.py` is the ground truth metric.
-
-**The goal is simple: get the lowest val_bpb.** Since the time budget is fixed, you don't need to worry about training time — it's always 5 minutes. Everything is fair game: change the architecture, the optimizer, the hyperparameters, the batch size, the model size. The only constraint is that the code runs without crashing and finishes within the time budget.
-
-**VRAM** is a soft constraint. Some increase is acceptable for meaningful val_bpb gains, but it should not blow up dramatically.
-
-**Simplicity criterion**: All else being equal, simpler is better. A small improvement that adds ugly complexity is not worth it. Conversely, removing something and getting equal or better results is a great outcome — that's a simplification win. When evaluating whether to keep a change, weigh the complexity cost against the improvement magnitude. A 0.001 val_bpb improvement that adds 20 lines of hacky code? Probably not worth it. A 0.001 val_bpb improvement from deleting code? Definitely keep. An improvement of ~0 but much simpler code? Keep.
-
-**The first run**: Your very first run should always be to establish the baseline, so you will run the training script as is.
-
-## Output format
-
-Once the script finishes it prints a summary like this:
-
+Output:
 ```
 ---
-val_bpb:          0.997900
-training_seconds: 300.1
-total_seconds:    325.9
-peak_vram_mb:     45060.2
-mfu_percent:      39.80
-total_tokens_M:   499.6
-num_steps:        953
-num_params_M:     50.3
-depth:            8
+fitness:          0.4523
+precision_pct:    42.3
+recall_pct:       67.8
+profit_factor:    1.85
+false_alarm_pct:  31.2
+instruments:      Cotton=0.52, Wheat=0.41, SP500=0.38, Gold=0.61
+best_instrument:  Gold (0.61)
+worst_instrument: SP500 (0.38)
 ```
 
-Note that the script is configured to always stop after 5 minutes, so depending on the computing platform of this computer the numbers might look different. You can extract the key metric from the log file:
+## Logging Results
+
+Log every experiment to `results.tsv`:
 
 ```
-grep "^val_bpb:" run.log
+commit	fitness	precision	recall	profit_factor	status	description
+a1b2c3d	0.4523	42.3	67.8	1.85	keep	baseline equal weights
+b2c3d4e	0.4891	45.1	65.2	2.01	keep	boost Saturn aspects 3x
+c3d4e5f	0.3200	28.1	72.3	1.12	discard	removed Bayer rules
 ```
 
-## Logging results
-
-When an experiment is done, log it to `results.tsv` (tab-separated, NOT comma-separated — commas break in descriptions).
-
-The TSV has a header row and 5 columns:
-
-```
-commit	val_bpb	memory_gb	status	description
-```
-
-1. git commit hash (short, 7 chars)
-2. val_bpb achieved (e.g. 1.234567) — use 0.000000 for crashes
-3. peak memory in GB, round to .1f (e.g. 12.3 — divide peak_vram_mb by 1024) — use 0.0 for crashes
-4. status: `keep`, `discard`, or `crash`
-5. short text description of what this experiment tried
-
-Example:
-
-```
-commit	val_bpb	memory_gb	status	description
-a1b2c3d	0.997900	44.0	keep	baseline
-b2c3d4e	0.993200	44.2	keep	increase LR to 0.04
-c3d4e5f	1.005000	44.0	discard	switch to GeLU activation
-d4e5f6g	0.000000	0.0	crash	double model width (OOM)
-```
-
-## The experiment loop
-
-The experiment runs on a dedicated branch (e.g. `autoresearch/mar5` or `autoresearch/mar5-gpu0`).
+## The Experiment Loop
 
 LOOP FOREVER:
 
-1. Look at the git state: the current branch/commit we're on
-2. Tune `train.py` with an experimental idea by directly hacking the code.
-3. git commit
-4. Run the experiment: `uv run train.py > run.log 2>&1` (redirect everything — do NOT use tee or let output flood your context)
-5. Read out the results: `grep "^val_bpb:\|^peak_vram_mb:" run.log`
-6. If the grep output is empty, the run crashed. Run `tail -n 50 run.log` to read the Python stack trace and attempt a fix. If you can't get things to work after more than a few attempts, give up.
-7. Record the results in the tsv
-8. If val_bpb improved (lower), you "advance" the branch, keeping the git commit
-9. If val_bpb is equal or worse, you git reset back to where you started
+1. Review current weights configuration and recent results
+2. Form a hypothesis (informed by knowledge/ materials)
+3. Modify `src/weights.py`
+4. Git commit
+5. Run: `python src/evaluate.py > run.log 2>&1`
+6. Read results: `grep "^fitness:\|^precision" run.log`
+7. Record in results.tsv
+8. If fitness improved → keep (advance branch)
+9. If fitness same or worse → revert (`git reset --hard HEAD~1`)
+10. NEVER STOP. Keep iterating.
 
-The idea is that you are a completely autonomous researcher trying things out. If they work, keep. If they don't, discard. And you're advancing the branch so that you can iterate. If you feel like you're getting stuck in some way, you can rewind but you should probably do this very very sparingly (if ever).
+## Research Directives
 
-**Timeout**: Each experiment should take ~5 minutes total (+ a few seconds for startup and eval overhead). If a run exceeds 10 minutes, kill it and treat it as a failure (discard and revert).
+### Phase 1: Weight Discovery (First 100 experiments)
+- Start with equal weights (baseline)
+- Vary one weight at a time to find sensitivity
+- Identify which rules matter most per instrument
+- Find optimal orb values
 
-**Crashes**: If a run crashes (OOM, or a bug, or etc.), use your judgment: If it's something dumb and easy to fix (e.g. a typo, a missing import), fix it and re-run. If the idea itself is fundamentally broken, just skip it, log "crash" as the status in the tsv, and move on.
+### Phase 2: Confluence Patterns (Experiments 100-300)
+- Test which rule combinations amplify each other
+- Add interaction terms for strong combos
+- Test instrument-specific weight profiles
+- Optimize thresholds per instrument
 
-**NEVER STOP**: Once the experiment loop has begun (after the initial setup), do NOT pause to ask the human if you should continue. Do NOT ask "should I keep going?" or "is this a good stopping point?". The human might be asleep, or gone from a computer and expects you to continue working *indefinitely* until you are manually stopped. You are autonomous. If you run out of ideas, think harder — read papers referenced in the code, re-read the in-scope files for new angles, try combining previous near-misses, try more radical architectural changes. The loop runs until the human interrupts you, period.
+### Phase 3: Advanced Patterns (Experiments 300+)
+- Read `knowledge/` for new hypotheses from Gann's texts
+- Test ideas from decoded Tunnel Through The Air
+- Try planetary harmonic fractions (1/2, 1/3, 1/4 of cycles)
+- Test direction prediction (which turns are tops vs bottoms)
+- Explore time-of-year seasonality interactions
+- Test cycle phase offsets
 
-As an example use case, a user might leave you running while they sleep. If each experiment takes you ~5 minutes then you can run approx 12/hour, for a total of about 100 over the duration of the average human sleep. The user then wakes up to experimental results, all completed by you while they slept!
+### Knowledge-Driven Hypotheses
+
+Read these files for hypothesis generation:
+- `knowledge/ebooks/` — Gann's own books + MJ's study guide
+- `knowledge/decoded/` — Decoded Tunnel Through The Air data
+- `knowledge/rules-extracted/` — Cataloged rules from all sources
+- `knowledge/wiits/` — WIITS community research posts
+- `knowledge/youtube/` — Transcribed video lectures
+
+Key insights from the knowledge base:
+1. **Individual rules are weak (~20-45% alone)** — confluence is everything
+2. **Outer planet aspects carry more weight** (slower = rarer = stronger)
+3. **Mars is the key planet for Cotton** (Gann emphasized this repeatedly)
+4. **Saturn synodic period (378d) is the most universal cycle**
+5. **Inversions (~10%) happen at specific planetary conditions** — don't fight them
+6. **700 days (Mars sidereal) is Cotton's master cycle** (decoded from Tunnel)
+7. **Phase-locking matters** — same cycle works only at specific phase offsets
+8. **Gann used 3+ confirming rules before trading** — minimum confluence
+
+### Anti-Patterns (What NOT to do)
+- Don't set any single rule weight > 10 (overfitting)
+- Don't remove all rules of one category (lose signal diversity)
+- Don't optimize for one instrument at expense of others
+- Don't reduce orbs below 0.5° (too tight, miss valid signals)
+- Don't chase recall above 90% (will tank precision)
+- If precision drops below 25%, something is very wrong — revert
+
+## Instruments
+
+The system tests across these markets simultaneously:
+- **Cotton** (CT=F) — Gann's specialty, most rules
+- **Wheat** (ZW=F) — Gann's second most traded
+- **S&P 500** (^GSPC) — Modern benchmark
+- **Gold** (GC=F) — Outer planet sensitive
+- **Crude Oil** (CL=F) — Mars-heavy
+- **Corn** (ZC=F) — Agricultural cycle sensitive
+
+## Key Concepts
+
+### Composite Score Formula
+```
+composite = Σ(rule_weight[i] × rule_signal[i]) + confluence_bonus
+```
+
+### Confluence Bonus
+When N rules fire simultaneously:
+- 2 rules: bonus × 1.0
+- 3 rules: bonus × 2.0
+- 4+ rules: bonus × 3.0
+
+### Inversion Detection
+Some planetary conditions predict when the normal H-L-H-L alternation breaks.
+The weights include "inversion risk" modifiers that can flip signal direction.
+
+### Direction Prediction
+Each rule can have a directional bias (bullish/bearish/neutral).
+The sum of directional weights predicts whether a turn is a top or bottom.
